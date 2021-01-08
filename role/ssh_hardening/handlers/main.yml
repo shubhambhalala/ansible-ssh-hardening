@@ -1,0 +1,12 @@
+---
+# handlers file for ssh_hardening
+#
+- name: restart ssh
+  service:
+          name: sshd
+          state: restarted
+
+- name: restart fail2ban
+  service:
+          name: fail2ban
+          state: restarted

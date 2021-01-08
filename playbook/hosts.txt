@@ -1,0 +1,4 @@
+[sshhardening]
+192.168.99.116 ansible_ssh_user=root ansible_ssh_pass=
+
+

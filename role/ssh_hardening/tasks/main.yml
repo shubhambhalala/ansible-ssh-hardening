@@ -1,0 +1,123 @@
+---
+# tasks file for ssh_hardening
+#
+- name: checking the user is present
+  shell: getent group wheel | grep "{{new_user_name}}"
+  register: upres
+  when: add_new_user
+- name: creating new user
+  user:
+          name: "{{ new_user_name }}"
+          password: "{{ new_user_password }}"
+          groups: wheel
+          append: yes
+  when: add_new_user and upres.rc != 0
+- name: "check /home/{{ new_user_name }}/.ssh dir exists"
+  shell: 'ls /home/{{ new_user_name }}/.ssh'
+  register: dpre
+  when: add_new_user
+- name: "create /home/{{ new_user_name }}/.ssh/ dir"
+  file:
+          path: "/home/{{ new_user_name }}/.ssh/"
+          state: directory
+          owner: "{{ new_user_name }}"
+          group: "{{ new_user_name }}"
+          force: no
+  when: add_new_user and dpre.rc != 0
+- name: "create /home/{{ pre_user_name }}/.ssh dir exists"
+  shell: 'ls /home/{{ pre_user_name }}/.ssh'
+  register: dppre
+  when: pre_user
+- name: "create /home/{{ pre_user_name }}/.ssh/ dir"
+  file:
+          path: "/home/{{ pre_user_name }}/.ssh/"
+          state: directory
+          owner: "{{ pre_user_name }}"
+          group: "{{ pre_user_name }}"
+          force: no
+  when: pre_user and dppre.rc != 0
+- name: "check if /home/{{ new_user_name }}/.ssh/id_rsa.pub file exists"
+  shell: 'ls /home/{{ new_user_name }}/.ssh/id_rsa.pub'
+  register: fpre
+  when: add_new_user 
+- name: "create /home/{{ new_user_name }}/.ssh/id_rsa.pub file"
+  file:
+          path: "/home/{{ new_user_name }}/.ssh/id_rsa.pub"
+          state: touch
+          owner: "{{ new_user_name }}"
+          group: "{{ new_user_name }}"
+          force: no
+  when: add_new_user and fpre.rc != 0
+- name: "check if /home/{{ pre_user_name }}/.ssh/id_rsa.pub exists"
+  shell: 'ls /home/{{ pre_user_name }}/.ssh/id_rsa.pub'
+  register: fppre
+  when: pre_user  
+- name: "create /home/{{ pre_user_name }}/.ssh/id_rsa.pub file"
+  file:
+          path: "/home/{{ pre_user_name }}/.ssh/id_rsa.pub"
+          state: touch
+          owner: "{{ pre_user_name }}"
+          group: "{{ pre_user_name }}"
+          force: no
+  when: pre_user and fppre.rc != 0      
+- name: create ssh key
+  openssh_keypair:
+          path: "~/.ssh/id_rsa.pub"
+          type: rsa
+          size: 2048
+          state: present
+          force: no
+  when: create_ssh_key
+  delegate_to: 127.0.0.1 
+- name: add ssh key to new user
+  authorized_key:
+          user: "{{ new_user_name }}"
+          key: "{{ lookup('file', item) }}"
+          state: present
+  with_fileglob:
+          - "~/.ssh/id_rsa.pub"
+  when: add_new_user
+- name: add ssh key to pre user
+  authorized_key:
+          user: "{{ pre_user_name }}"
+          key: "{{ lookup('file', item) }}"
+          state: present
+  with_fileglob:
+          - "~/.ssh/id_rsa.pub"
+  when: pre_user  
+- name: epel-release present
+  yum:
+          name: https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm
+          state: present
+  when: config_fail2ban
+- name: fail2ban sendmail present
+  yum:
+          name: ['fail2ban','sendmail']
+          state: present
+  when: config_fail2ban
+- name: fail2ban configuration
+  template:
+          src: jail.local.j2
+          dest: /etc/fail2ban/jail.local
+          owner: root
+          group: root
+  when: config_fail2ban
+  notify:
+          - restart fail2ban        
+- name: no root login allowed
+  replace:
+          path: /etc/ssh/sshd_config
+          after: '#LoginGraceTime 2m'
+          before: '#StrictModes yes'
+          regexp: 'PermitRootLogin yes'
+          replace: 'PermitRootLogin {{ permit_root }}'
+  notify:
+          - restart ssh
+- name: no passwd login allowed
+  replace:
+          path: /etc/ssh/sshd_config
+          after: '#PermitEmptyPasswords no'
+          regexp: 'PasswordAuthentication yes'
+          replace: 'PasswordAuthentication {{ passwd_auth }}'
+  notify:
+          - restart ssh

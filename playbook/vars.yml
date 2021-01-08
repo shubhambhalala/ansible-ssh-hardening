@@ -1,0 +1,27 @@
+#defaults
+add_new_user: true
+create_ssh_key: false
+config_fail2ban: true
+pre_user: false
+key_rotate: "no"
+
+#fail2ban config
+destmail: "shubhambhalala@gmail.com"
+sendermail: "jenkins@gmail.com"
+sendername: "Fail2Ban"
+mta: "sendmail"
+banaction: "iptables-multiport"
+f2bsshenable: "true"
+f2bsshport: "ssh"
+f2bsshfilter: "sshd"
+f2bsshfindtime: 300
+f2bsshmaxretry: 5
+f2bsshtime: 21600
+f2bignoreip: "192.168.99.102"
+
+#ssh config
+new_user_name: "shubham"
+permit_root: "no"
+passwd_auth: "no"
+new_user_password: "{{ 'shubham' | password_hash('sha512') }}"
+pre_user_name: "devops"
